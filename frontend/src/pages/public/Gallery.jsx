@@ -12,6 +12,7 @@ const images = [
   "/images/gym-11.png,"
 ];
 
+
 export default function Gallery() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-16">
