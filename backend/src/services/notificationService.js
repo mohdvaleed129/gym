@@ -60,9 +60,10 @@ async function queueAndSend({ member, type, triggeredBy }) {
     dedupeKey,
     triggeredBy: triggeredBy?._id,
   });
-
+  
   const result = await sendViaProvider(channel, member.mobile, message, {
     memberName: member.fullName,
+    type,
   });
 
   if (result.success) {

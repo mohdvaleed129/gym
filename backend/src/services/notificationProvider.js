@@ -60,6 +60,13 @@ async function sendWhatsapp(mobile, message, options = {}) {
     };
   }
 
+  if (options.type !== "due") {
+    return {
+      success: false,
+      errorMessage: "The configured WhatsApp template is only valid for due-date reminders."
+    };
+  }
+
   const memberName = String(options.memberName || "").trim();
 
   if (!memberName) {
