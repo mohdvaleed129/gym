@@ -1,53 +1,158 @@
+
 /**
- * Provider abstraction for SMS/WhatsApp delivery. Real delivery requires
- * provider credentials in the environment. When a provider is not
- * configured, callers get an explicit "not configured" result rather than a
- * simulated success - the system must never pretend a message was sent.
- *
- * To wire up a real provider, implement its API call inside the relevant
- * branch below (e.g. call your SMS gateway's REST API using SMS_API_KEY),
- * and return { success: true, providerReference } on success or
- * { success: false, errorMessage } on failure.
+ * Secure SMS / WhatsApp provider integration.
+ * MSG91 credentials must remain in backend environment variables.
  */
+
+const MSG91_WHATSAPP_URL =
+  "https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/";
 
 function isSmsConfigured() {
   return Boolean(process.env.SMS_PROVIDER && process.env.SMS_API_KEY);
 }
 
 function isWhatsappConfigured() {
-  return Boolean(process.env.WHATSAPP_PROVIDER && process.env.WHATSAPP_API_KEY);
+  return Boolean(
+    process.env.WHATSAPP_PROVIDER === "msg91" &&
+    process.env.WHATSAPP_API_KEY &&
+    process.env.WHATSAPP_INTEGRATED_NUMBER &&
+    process.env.WHATSAPP_TEMPLATE_NAME
+  );
+}
+
+function normalizeIndianMobile(mobile) {
+  const digits = String(mobile || "").replace(/\D/g, "");
+
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 12 && digits.startsWith("91")) return digits;
+
+  return null;
 }
 
 async function sendSms(mobile, message) {
   if (!isSmsConfigured()) {
-    return { success: false, errorMessage: "Notification service is not configured." };
+    return {
+      success: false,
+      errorMessage: "SMS provider is not configured."
+    };
   }
-  // TODO: integrate real SMS provider (e.g. Twilio, MSG91) using
-  // process.env.SMS_PROVIDER / SMS_API_KEY / SMS_SENDER_ID.
-  try {
-    throw new Error("SMS provider integration not implemented.");
-  } catch (err) {
-    return { success: false, errorMessage: err.message };
-  }
+
+  return {
+    success: false,
+    errorMessage: "SMS provider integration is not implemented."
+  };
 }
 
-async function sendWhatsapp(mobile, message) {
+async function sendWhatsapp(mobile, message, options = {}) {
   if (!isWhatsappConfigured()) {
-    return { success: false, errorMessage: "Notification service is not configured." };
+    return {
+      success: false,
+      errorMessage: "MSG91 WhatsApp is not configured."
+    };
   }
-  // TODO: integrate real WhatsApp Business API using
-  // process.env.WHATSAPP_PROVIDER / WHATSAPP_API_KEY / WHATSAPP_PHONE_NUMBER_ID.
+
+  const recipient = normalizeIndianMobile(mobile);
+
+  if (!recipient) {
+    return {
+      success: false,
+      errorMessage: "Invalid Indian mobile number."
+    };
+  }
+
+  const memberName = String(options.memberName || "").trim();
+
+  if (!memberName) {
+    return {
+      success: false,
+      errorMessage: "Member name is required for the WhatsApp template."
+    };
+  }
+
+  const authKey = process.env.WHATSAPP_API_KEY;
+
+  const payload = {
+    integrated_number: process.env.WHATSAPP_INTEGRATED_NUMBER,
+    content_type: "template",
+    payload: {
+      messaging_product: "whatsapp",
+      type: "template",
+      template: {
+        name: process.env.WHATSAPP_TEMPLATE_NAME,
+        language: {
+          code: "en",
+          policy: "deterministic"
+        },
+        to_and_components: [
+          {
+            to: [recipient],
+            components: {
+              body_1: {
+                type: "text",
+                value: memberName
+              }
+            }
+          }
+        ]
+      }
+    }
+  };
+
   try {
-    throw new Error("WhatsApp provider integration not implemented.");
-  } catch (err) {
-    return { success: false, errorMessage: err.message };
+    const response = await fetch(MSG91_WHATSAPP_URL, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        authkey: authKey,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000)
+    });
+
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      // Do not expose the API key or full provider response in errors.
+      return {
+        success: false,
+        errorMessage: `MSG91 request failed with HTTP ${response.status}.`
+      };
+    }
+
+    return {
+      success: true,
+      providerReference:
+        result?.request_id ||
+        result?.message_id ||
+        result?.data?.request_id ||
+        undefined
+    };
+  } catch (error) {
+    return {
+      success: false,
+      errorMessage:
+        error.name === "TimeoutError" || error.name === "AbortError"
+          ? "MSG91 request timed out."
+          : "Could not connect to MSG91."
+    };
   }
 }
 
-async function send(channel, mobile, message) {
+async function send(channel, mobile, message, options = {}) {
   if (channel === "sms") return sendSms(mobile, message);
-  if (channel === "whatsapp") return sendWhatsapp(mobile, message);
-  return { success: false, errorMessage: "Unknown notification channel." };
+  if (channel === "whatsapp") {
+    return sendWhatsapp(mobile, message, options);
+  }
+
+  return {
+    success: false,
+    errorMessage: "Unknown notification channel."
+  };
 }
 
-module.exports = { send, isSmsConfigured, isWhatsappConfigured };
+module.exports = {
+  send,
+  isSmsConfigured,
+  isWhatsappConfigured
+};
