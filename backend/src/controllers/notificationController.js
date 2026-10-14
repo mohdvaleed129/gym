@@ -77,7 +77,15 @@ exports.retryNotification = async (req, res, next) => {
     const { buildMessage, getSettings } = require("../services/notificationService");
     const settings = await getSettings();
     const message = buildMessage(notification.type, notification.member, settings.gymName);
-    const result = await send(notification.channel, notification.member.mobile, message);
+    const result = await send(
+      notification.channel,
+      notification.member.mobile,
+      message,
+    {
+      memberName: notification.member.fullName,
+      type: notification.type,
+    }
+    );
 
     if (result.success) {
       notification.status = "sent";
