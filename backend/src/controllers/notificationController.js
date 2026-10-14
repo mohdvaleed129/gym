@@ -8,7 +8,7 @@ const logAudit = require("../utils/auditLogger");
 exports.sendReminder = async (req, res, next) => {
   try {
     const { memberId, type } = req.body;
-    if (!["reminder_before", "due", "overdue"].includes(type)) {
+    if (type !== "due") {
       throw new AppError("Invalid reminder type.", 400);
     }
 

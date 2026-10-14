@@ -14,14 +14,8 @@ function buildMessage(type, member, gymName) {
   const due = formatDDMMMYYYY(member.currentBillingEnd);
 
   switch (type) {
-    case "reminder_before":
-      return `${gymName}: Hi ${member.fullName}, a friendly reminder that your membership fee of ${formatINR(member.currentDueAmount)} is due on ${due}.`;
-
     case "due":
       return `${gymName}: Hi ${member.fullName}, your membership fee of ${formatINR(member.currentDueAmount)} is due today (${due}). Please pay at your earliest convenience.`;
-
-    case "overdue":
-      return `${gymName}: Hi ${member.fullName}, your membership fee of ${formatINR(member.currentDueAmount)} was due on ${due} and is now overdue. Please contact the gym.`;
 
     case "payment_confirmation":
       return `${gymName}: Hi ${member.fullName}, we've received your payment. Your next due date is ${due}.`;

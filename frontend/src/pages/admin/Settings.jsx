@@ -79,18 +79,12 @@ export default function Settings() {
 
         <h2 className="pt-2 font-semibold text-ink">Reminder Settings</h2>
         <div className="space-y-3">
-          <label className="flex items-center gap-3 text-sm">
-            <input type="checkbox" checked={settings.reminders.beforeEnabled} onChange={(e) => updateReminder("beforeEnabled", e.target.checked)} />
-            Send reminder <input type="number" min="1" className="input w-16" value={settings.reminders.beforeDays} onChange={(e) => updateReminder("beforeDays", Number(e.target.value))} /> days before due date
-          </label>
+          
           <label className="flex items-center gap-3 text-sm">
             <input type="checkbox" checked={settings.reminders.dueEnabled} onChange={(e) => updateReminder("dueEnabled", e.target.checked)} />
             Send reminder on due date
           </label>
-          <label className="flex items-center gap-3 text-sm">
-            <input type="checkbox" checked={settings.reminders.afterEnabled} onChange={(e) => updateReminder("afterEnabled", e.target.checked)} />
-            Send reminder <input type="number" min="1" className="input w-16" value={settings.reminders.afterDays} onChange={(e) => updateReminder("afterDays", Number(e.target.value))} /> days after due date (overdue)
-          </label>
+          
           <div>
             <label className="label">Preferred Channel</label>
             <select className="input max-w-[180px]" value={settings.reminders.preferredChannel} onChange={(e) => updateReminder("preferredChannel", e.target.value)}>

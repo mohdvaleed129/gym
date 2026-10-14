@@ -16,14 +16,15 @@ const settingsSchema = new mongoose.Schema(
     defaultBillingDurationType: { type: String, enum: ["days", "months"], default: "months" },
     defaultBillingDurationValue: { type: Number, default: 1 },
     defaultFee: { type: Number, default: 1000 },
-
     reminders: {
-      beforeEnabled: { type: Boolean, default: true },
-      beforeDays: { type: Number, default: 3 },
+      beforeEnabled: { type: Boolean, default: false },
       dueEnabled: { type: Boolean, default: true },
-      afterEnabled: { type: Boolean, default: true },
-      afterDays: { type: Number, default: 3 },
-      preferredChannel: { type: String, enum: ["sms", "whatsapp"], default: "whatsapp" },
+      afterEnabled: { type: Boolean, default: false },
+      preferredChannel: {
+        type: String,
+        enum: ["sms", "whatsapp"],
+        default: "whatsapp",
+      },
     },
   },
   { timestamps: true }

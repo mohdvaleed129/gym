@@ -19,14 +19,15 @@ async function runDailyReminderJob() {
   for (const member of members) {
     try {
       const daysToDue = daysBetween(member.currentBillingEnd, today);
-
       let type = null;
-      if (settings.reminders.beforeEnabled && daysToDue === settings.reminders.beforeDays) {
-        type = "reminder_before";
-      } else if (settings.reminders.dueEnabled && daysToDue === 0) {
+
+      if (settings.reminders.dueEnabled && daysToDue === 0) {
         type = "due";
-      } else if (settings.reminders.afterEnabled && daysToDue === -settings.reminders.afterDays) {
-        type = "overdue";
+      }
+
+      if (!type) {
+        results.skipped++;
+        continue;
       }
 
       if (!type) {
