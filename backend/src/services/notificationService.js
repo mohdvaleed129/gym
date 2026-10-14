@@ -61,7 +61,9 @@ async function queueAndSend({ member, type, triggeredBy }) {
     triggeredBy: triggeredBy?._id,
   });
 
-  const result = await sendViaProvider(channel, member.mobile, message);
+  const result = await sendViaProvider(channel, member.mobile, message, {
+    memberName: member.fullName,
+  });
 
   if (result.success) {
     notification.status = "sent";
