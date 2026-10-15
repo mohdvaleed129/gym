@@ -23,6 +23,7 @@ const settingsRoutes = require("./routes/settingsRoutes");
 const auditLogRoutes = require("./routes/auditLogRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const enquiryRoutes = require("./routes/enquiryRoutes");
+const photoRoutes = require("./routes/photoRoutes");
 
 connectDB();
 scheduleDailyReminderJob();
@@ -47,7 +48,6 @@ app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(cookieParser());
 app.use(mongoSanitize());
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
-
 // Serve uploaded member photos.
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
@@ -55,9 +55,9 @@ const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 });
 app.use("/api", apiLimiter);
 
 app.get("/api/health", (req, res) => res.status(200).json({ status: "ok" }));
-
 app.use("/api/auth", authRoutes);
 app.use("/api/members", memberRoutes);
+app.use("/api/photos", photoRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/fees", feesRoutes);
 app.use("/api/notifications", notificationRoutes);

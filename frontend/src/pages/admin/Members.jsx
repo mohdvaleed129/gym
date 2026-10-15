@@ -96,8 +96,16 @@ export default function Members() {
               <tr key={m._id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
                   <div className="h-9 w-9 overflow-hidden rounded-full bg-gray-100">
-                    {m.photoUrl && <img src={`${import.meta.env.VITE_API_URL.replace("/api", "")}${m.photoUrl}`} className="h-full w-full object-cover" />}
-                  </div>
+{m.photoUrl && (
+  <img
+    src={`${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}${m.photoUrl}`}
+    alt={m.fullName}
+    className="h-full w-full object-cover"
+    onError={(e) => {
+      e.currentTarget.style.display = "none";
+    }}
+  />
+)}                  </div>
                 </td>
                 <td className="px-4 py-3 font-medium text-ink">{m.memberCode}</td>
                 <td className="px-4 py-3 text-ink">{m.fullName}</td>
@@ -121,8 +129,16 @@ export default function Members() {
           <Link key={m._id} to={`/admin/members/${m._id}`} className="card block">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
-                {m.photoUrl && <img src={`${import.meta.env.VITE_API_URL.replace("/api", "")}${m.photoUrl}`} className="h-full w-full object-cover" />}
-              </div>
+{m.photoUrl && (
+  <img
+    src={`${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}${m.photoUrl}`}
+    alt={m.fullName}
+    className="h-full w-full object-cover"
+    onError={(e) => {
+      e.currentTarget.style.display = "none";
+    }}
+  />
+)}              </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-ink">{m.fullName}</p>
                 <p className="text-xs text-muted">{m.memberCode} · {m.planNameSnapshot}</p>

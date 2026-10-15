@@ -77,8 +77,20 @@ export default function MemberProfile() {
       <div className="card">
         <div className="flex flex-wrap items-center gap-4">
           <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
-            {member.photoUrl && ( <img src={`${photoBase}${member.photoUrl}`} alt={`${member.fullName} profile`} className="h-full w-full object-cover" /> )}
-          </div>
+{member.photoUrl && (
+  <img
+    src={
+      member.photoUrl.startsWith("/api/photos/")
+        ? `${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}${member.photoUrl}`
+        : `${import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")}${member.photoUrl}`
+    }
+    alt={`${member.fullName} profile`}
+    className="h-full w-full object-cover"
+    onError={(e) => {
+      e.currentTarget.style.display = "none";
+    }}
+  />
+)}          </div>
           <div className="flex-1">
             <h1 className="text-xl font-bold text-ink">{member.fullName}</h1>
             <p className="text-sm text-muted">{member.memberCode}</p>
