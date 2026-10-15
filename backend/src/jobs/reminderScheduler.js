@@ -1,58 +1,54 @@
+
 const cron = require("node-cron");
 const Member = require("../models/Member");
 const { queueAndSend, getSettings } = require("../services/notificationService");
 const { todayKolkata, daysBetween } = require("../utils/dateKolkata");
 
-/**
- * Runs once per member per eligible day. Idempotent via the Notification
- * model's unique dedupeKey - safe to re-run without creating duplicates.
- * One member failing does not stop the rest of the run.
- */
-async function runDailyReminderJob() {
+async function runDailyReminderJob({ dryRun = process.env.REMINDER_DRY_RUN !== "false" } = {}) {
   const settings = await getSettings();
   const today = todayKolkata();
 
-  const members = await Member.find({ status: "active", currentDueAmount: { $gt: 0 } });
+  const members = await Member.find({
+    status: "active",
+    currentDueAmount: { $gt: 0 },
+  });
 
-  const results = { checked: members.length, sent: 0, failed: 0, skipped: 0 };
+  const results = {
+    checked: members.length,
+    eligible: 0,
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    dryRun,
+  };
 
   for (const member of members) {
     try {
       const daysToDue = daysBetween(member.currentBillingEnd, today);
-      let type = null;
 
-      if (settings.reminders.dueEnabled && daysToDue === 0) {
-        type = "due";
-      }
-
-      if (!type) {
+      if (!settings.reminders.dueEnabled || daysToDue !== 0) {
         results.skipped++;
         continue;
       }
 
-      if (!type) {
-        results.skipped++;
+      results.eligible++;
+
+      if (dryRun) {
+        console.log(`[DRY RUN] Eligible: ${member.memberCode}`);
         continue;
       }
 
-      // Never remind a member who has already fully paid this cycle.
-      if (member.currentDueAmount <= 0) {
-        results.skipped++;
-        continue;
-      }
+      const { notification, alreadyExisted } = await queueAndSend({
+        member,
+        type: "due",
+      });
 
-      const { notification, alreadyExisted } = await queueAndSend({ member, type });
-      if (alreadyExisted) {
-        results.skipped++;
-      } else if (notification.status === "sent") {
-        results.sent++;
-      } else {
-        results.failed++;
-      }
+      if (alreadyExisted) results.skipped++;
+      else if (notification.status === "sent") results.sent++;
+      else results.failed++;
     } catch (err) {
-      console.error(`Reminder job failed for member ${member.memberCode}:`, err.message);
+      console.error(`Reminder job failed for ${member.memberCode}:`, err.message);
       results.failed++;
-      // Continue to the next member - one failure must not stop the run.
     }
   }
 
@@ -61,14 +57,37 @@ async function runDailyReminderJob() {
 }
 
 function scheduleDailyReminderJob() {
-  // Runs every day at 9:00 AM Asia/Kolkata.
   cron.schedule(
     "0 9 * * *",
-    () => {
-      runDailyReminderJob().catch((err) => console.error("Reminder job crashed:", err.message));
-    },
+    () => runDailyReminderJob().catch((err) =>
+      console.error("Reminder job crashed:", err.message)
+    ),
     { timezone: "Asia/Kolkata" }
+  );
+
+  console.log(
+    `BODY FLEX scheduler registered for 9:00 AM IST. Mode: ${
+      process.env.REMINDER_DRY_RUN === "false" ? "LIVE SENDING" : "DRY RUN — no messages sent"
+    }`
   );
 }
 
 module.exports = { runDailyReminderJob, scheduleDailyReminderJob };
+
+if (require.main === module && process.argv.includes("--dry-run")) {
+  require("dotenv").config({ path: require("path").resolve(__dirname, "../../.env") });
+  const connectDB = require("../config/db");
+
+  (async () => {
+    try {
+      await connectDB();
+      await runDailyReminderJob({ dryRun: true });
+    } catch (err) {
+      console.error("Dry-run failed:", err.message);
+      process.exitCode = 1;
+    } finally {
+      const mongoose = require("mongoose");
+      await mongoose.disconnect();
+    }
+  })();
+}
