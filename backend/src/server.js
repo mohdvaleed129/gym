@@ -10,8 +10,10 @@ const rateLimit = require("express-rate-limit");
 
 const connectDB = require("./config/db");
 const { errorHandler } = require("./middleware/errorHandler");
-const { scheduleDailyReminderJob } = require("./jobs/reminderScheduler");
-
+const {
+  scheduleDailyReminderJob,
+  runDailyReminderJob,
+} = require("./jobs/reminderScheduler");
 const authRoutes = require("./routes/authRoutes");
 const memberRoutes = require("./routes/memberRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
@@ -55,6 +57,21 @@ const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 });
 app.use("/api", apiLimiter);
 
 app.get("/api/health", (req, res) => res.status(200).json({ status: "ok" }));
+app.get("/api/cron/daily-reminders", async (req, res) => {
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (!cronSecret || req.get("x-cron-secret") !== cronSecret) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const results = await runDailyReminderJob({ dryRun: false });
+    return res.status(200).json({ success: true, results });
+  } catch (err) {
+    console.error("External daily reminder job failed:", err);
+    return res.status(500).json({ success: false, message: "Reminder job failed" });
+  }
+});
 app.use("/api/auth", authRoutes);
 app.use("/api/members", memberRoutes);
 app.use("/api/photos", photoRoutes);
