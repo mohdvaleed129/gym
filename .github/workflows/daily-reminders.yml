@@ -34,5 +34,5 @@ jobs:
           WHATSAPP_API_KEY: ${{ secrets.WHATSAPP_API_KEY }}
           WHATSAPP_INTEGRATED_NUMBER: ${{ secrets.WHATSAPP_INTEGRATED_NUMBER }}
           WHATSAPP_TEMPLATE_NAME: ${{ secrets.WHATSAPP_TEMPLATE_NAME }}
-          REMINDER_DRY_RUN: "true"
+          REMINDER_DRY_RUN: "false"
         run: node src/jobs/reminderScheduler.js --run-once
