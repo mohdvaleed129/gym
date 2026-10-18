@@ -74,20 +74,28 @@ function scheduleDailyReminderJob() {
 
 module.exports = { runDailyReminderJob, scheduleDailyReminderJob };
 
-if (require.main === module && process.argv.includes("--dry-run")) {
-  require("dotenv").config({ path: require("path").resolve(__dirname, "../../.env") });
+if (require.main === module && process.argv.includes("--run-once")) {
+  require("dotenv").config({
+    path: require("path").resolve(__dirname, "../../.env"),
+  });
+
   const connectDB = require("../config/db");
+  const mongoose = require("mongoose");
 
   (async () => {
     try {
       await connectDB();
-      await runDailyReminderJob({ dryRun: true });
+
+      const dryRun = process.env.REMINDER_DRY_RUN !== "false";
+      const results = await runDailyReminderJob({ dryRun });
+
+      if (results.failed > 0) process.exitCode = 1;
     } catch (err) {
-      console.error("Dry-run failed:", err.message);
+      console.error("Reminder job failed:", err.message);
       process.exitCode = 1;
     } finally {
-      const mongoose = require("mongoose");
       await mongoose.disconnect();
     }
   })();
 }
+
