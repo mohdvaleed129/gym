@@ -342,3 +342,63 @@ exports.deleteMember = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.extendDueDate = async (req, res, next) => {
+  try {
+    const { currentBillingEnd } = req.body;
+
+    if (
+      !currentBillingEnd ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(currentBillingEnd)
+    ) {
+      throw new AppError("Please provide a valid new due date.", 400);
+    }
+
+    const newDate = toDateOnlyUTC(currentBillingEnd);
+
+    if (
+      !newDate ||
+      Number.isNaN(newDate.getTime()) ||
+      newDate.toISOString().slice(0, 10) !== currentBillingEnd
+    ) {
+      throw new AppError("Please provide a valid calendar date.", 400);
+    }
+
+    const member = await Member.findById(req.params.id);
+
+    if (!member) {
+      throw new AppError("Member not found.", 404);
+    }
+
+    if (!member.currentBillingEnd) {
+      throw new AppError("Member has no current billing end date.", 400);
+    }
+
+    const oldDate = member.currentBillingEnd.toISOString().slice(0, 10);
+
+    if (currentBillingEnd <= oldDate) {
+      throw new AppError(
+        "New due date must be later than the current due date.",
+        400
+      );
+    }
+
+    member.currentBillingEnd = newDate;
+    await member.save();
+
+    await logAudit({
+      admin: req.admin,
+      action: "member.due_date_extended",
+      entityType: "Member",
+      entityId: member._id,
+      details: `Extended due date for ${member.fullName} from ${oldDate} to ${currentBillingEnd}.`,
+    });
+
+    res.status(200).json({
+      message: "Due date extended successfully.",
+      member,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
