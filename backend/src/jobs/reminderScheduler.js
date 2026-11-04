@@ -1,12 +1,99 @@
-
 const cron = require("node-cron");
 const Member = require("../models/Member");
-const { queueAndSend, getSettings } = require("../services/notificationService");
-const { todayKolkata, daysBetween } = require("../utils/dateKolkata");
 
-async function runDailyReminderJob({ dryRun = process.env.REMINDER_DRY_RUN !== "false" } = {}) {
+const {
+  queueAndSend,
+  getSettings,
+} = require("../services/notificationService");
+
+const {
+  todayKolkata,
+  daysBetween,
+  addMonths,
+} = require("../utils/dateKolkata");
+
+
+async function advanceBillingDatesAfterDueDay({
+  today = todayKolkata(),
+  dryRun = process.env.REMINDER_DRY_RUN !== "false",
+} = {}) {
+  const yesterday = new Date(today);
+
+  yesterday.setUTCDate(
+    yesterday.getUTCDate() - 1
+  );
+
+  const members = await Member.find({
+    status: "active",
+    currentDueAmount: { $gt: 0 },
+    currentBillingEnd: yesterday,
+  });
+
+  let advanced = 0;
+
+  for (const member of members) {
+    const oldStart = member.currentBillingStart;
+    const oldEnd = member.currentBillingEnd;
+
+    const nextEnd = addMonths(oldEnd, 1);
+
+    if (dryRun) {
+      console.log(
+        `[DRY RUN] Would advance ${member.memberCode}: ` +
+        `${oldEnd.toISOString()} -> ${nextEnd.toISOString()}`
+      );
+
+      continue;
+    }
+
+    const result = await Member.updateOne(
+      {
+        _id: member._id,
+        currentBillingStart: oldStart,
+        currentBillingEnd: oldEnd,
+      },
+      {
+        $set: {
+          currentBillingStart: oldEnd,
+          currentBillingEnd: nextEnd,
+        },
+      }
+    );
+
+    if (result.modifiedCount === 1) {
+      advanced++;
+    }
+  }
+
+  console.log(
+    "Billing date advancement complete:",
+    {
+      matched: members.length,
+      advanced,
+      dryRun,
+    }
+  );
+
+  return {
+    matched: members.length,
+    advanced,
+    dryRun,
+  };
+}
+
+
+async function runDailyReminderJob({
+  dryRun = process.env.REMINDER_DRY_RUN !== "false",
+} = {}) {
   const settings = await getSettings();
+
   const today = todayKolkata();
+
+  // Advance yesterday's due dates.
+  await advanceBillingDatesAfterDueDay({
+    today,
+    dryRun,
+  });
 
   const members = await Member.find({
     status: "active",
@@ -24,9 +111,15 @@ async function runDailyReminderJob({ dryRun = process.env.REMINDER_DRY_RUN !== "
 
   for (const member of members) {
     try {
-      const daysToDue = daysBetween(member.currentBillingEnd, today);
+      const daysToDue = daysBetween(
+        member.currentBillingEnd,
+        today
+      );
 
-      if (!settings.reminders.dueEnabled || daysToDue !== 0) {
+      if (
+        !settings.reminders.dueEnabled ||
+        daysToDue !== 0
+      ) {
         results.skipped++;
         continue;
       }
@@ -34,49 +127,89 @@ async function runDailyReminderJob({ dryRun = process.env.REMINDER_DRY_RUN !== "
       results.eligible++;
 
       if (dryRun) {
-        console.log(`[DRY RUN] Eligible: ${member.memberCode}`);
+        console.log(
+          `[DRY RUN] Eligible: ${member.memberCode}`
+        );
+
         continue;
       }
 
-      const { notification, alreadyExisted } = await queueAndSend({
+      const {
+        notification,
+        alreadyExisted,
+      } = await queueAndSend({
         member,
         type: "due",
       });
 
-      if (alreadyExisted) results.skipped++;
-      else if (notification.status === "sent") results.sent++;
-      else results.failed++;
+      if (alreadyExisted) {
+        results.skipped++;
+      } else if (notification.status === "sent") {
+        results.sent++;
+      } else {
+        results.failed++;
+      }
+
     } catch (err) {
-      console.error(`Reminder job failed for ${member.memberCode}:`, err.message);
+      console.error(
+        `Reminder job failed for ${member.memberCode}:`,
+        err.message
+      );
+
       results.failed++;
     }
   }
 
-  console.log("Daily reminder job complete:", results);
+  console.log(
+    "Daily reminder job complete:",
+    results
+  );
+
   return results;
 }
+
 
 function scheduleDailyReminderJob() {
   cron.schedule(
     "0 9 * * *",
-    () => runDailyReminderJob().catch((err) =>
-      console.error("Reminder job crashed:", err.message)
-    ),
-    { timezone: "Asia/Kolkata" }
+    () =>
+      runDailyReminderJob().catch((err) =>
+        console.error(
+          "Reminder job crashed:",
+          err.message
+        )
+      ),
+    {
+      timezone: "Asia/Kolkata",
+    }
   );
 
   console.log(
     `BODY FLEX scheduler registered for 9:00 AM IST. Mode: ${
-      process.env.REMINDER_DRY_RUN === "false" ? "LIVE SENDING" : "DRY RUN — no messages sent"
+      process.env.REMINDER_DRY_RUN === "false"
+        ? "LIVE SENDING"
+        : "DRY RUN — no messages sent"
     }`
   );
 }
 
-module.exports = { runDailyReminderJob, scheduleDailyReminderJob };
 
-if (require.main === module && process.argv.includes("--run-once")) {
+module.exports = {
+  runDailyReminderJob,
+  scheduleDailyReminderJob,
+  advanceBillingDatesAfterDueDay,
+};
+
+
+if (
+  require.main === module &&
+  process.argv.includes("--run-once")
+) {
   require("dotenv").config({
-    path: require("path").resolve(__dirname, "../../.env"),
+    path: require("path").resolve(
+      __dirname,
+      "../../.env"
+    ),
   });
 
   const connectDB = require("../config/db");
@@ -86,16 +219,27 @@ if (require.main === module && process.argv.includes("--run-once")) {
     try {
       await connectDB();
 
-      const dryRun = process.env.REMINDER_DRY_RUN !== "false";
-      const results = await runDailyReminderJob({ dryRun });
+      const dryRun =
+        process.env.REMINDER_DRY_RUN !== "false";
 
-      if (results.failed > 0) process.exitCode = 1;
+      const results = await runDailyReminderJob({
+        dryRun,
+      });
+
+      if (results.failed > 0) {
+        process.exitCode = 1;
+      }
+
     } catch (err) {
-      console.error("Reminder job failed:", err.message);
+      console.error(
+        "Reminder job failed:",
+        err.message
+      );
+
       process.exitCode = 1;
+
     } finally {
       await mongoose.disconnect();
     }
   })();
 }
-
