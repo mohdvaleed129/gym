@@ -72,8 +72,8 @@ A full-stack web application for running a gym: a public marketing website plus 
 ### 1. Clone
 
 ~~~bash
-git clone https://github.com/mohdvaleed129/<repo-name>.git
-cd <repo-name>
+git clone https://github.com/mohdvaleed129/gym.git
+cd gym
 ~~~
 
 ### 2. Backend
