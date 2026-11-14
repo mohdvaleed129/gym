@@ -86,24 +86,24 @@ npm install
 Create `backend/.env`:
 
 ~~~env
-PORT=5000
-NODE_ENV=development
-MONGO_URI=mongodb://localhost:27017/bodyflex
-FRONTEND_URL=http://localhost:5173
+PORT=
+NODE_ENV=
+MONGO_URI=
+FRONTEND_URL=
 
 JWT_SECRET=replace_with_a_long_random_string
 JWT_EXPIRES_IN=7d
 JWT_COOKIE_EXPIRES_DAYS=7
 
 # First admin account (used by the seed script)
-ADMIN_NAME=Gym Owner
-ADMIN_EMAIL=owner@example.com
-ADMIN_PASSWORD=use_a_strong_password
+ADMIN_NAME=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
 
 # Reminders
-REMINDER_DRY_RUN=true
+REMINDER_DRY_RUN=
 CRON_SECRET=replace_with_a_random_secret
-WHATSAPP_PROVIDER=msg91
+WHATSAPP_PROVIDER=
 WHATSAPP_API_KEY=
 WHATSAPP_INTEGRATED_NUMBER=
 WHATSAPP_TEMPLATE_NAME=
